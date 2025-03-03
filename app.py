@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import os
 from werkzeug.utils import secure_filename
-from ai-ml-services.car_number_recognition import process_image
+from ai_ml_services.car_number_recognition import process_image
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -15,8 +15,8 @@ def home():
 def car_number_recognition():
     return render_template('car_number_recognition.html')
 
-@app.route('/upload', methods=['POST'])
-def upload():
+@app.route('/uploadImageForCarNumber', methods=['POST'])
+def upload_image_for_car_number():
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
     
