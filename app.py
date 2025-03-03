@@ -19,21 +19,26 @@ def home():
 def car_number_recognition():
     return render_template('car_number_recognition.html')
 
-@app.route('/uploadImageForCarNumber', methods=['POST'])
-def upload_image_for_car_number():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+from ai_ml_services.car_number_recognition import extract_number_plate
+
+@app.route("/uploadImageForCarNumber", methods=["POST"])
+def upload_image():
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    filepath = os.path.join("uploads", file.filename)
     file.save(filepath)
-    
-    plates = extract_number_plate(filepath)
-    return jsonify({'plates': plates})
+
+    # Get detected plate
+    plate_text = extract_number_plate(filepath)
+
+    # Return data as a list
+    return jsonify({"plates": [plate_text]})  # Always return a list
+
 
 if __name__ == '__main__':
     app.run(debug=True)
