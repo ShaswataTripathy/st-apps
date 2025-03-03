@@ -32,7 +32,7 @@ def upload_image_for_car_number():
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
     
-    plates = process_image(filepath)
+    plates = extract_number_plate(filepath)
     return jsonify({'plates': plates})
 
 if __name__ == '__main__':
