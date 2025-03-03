@@ -28,6 +28,14 @@
                 <input type="file" name="file" id="fileInput" class="form-control mb-3">
                 <button type="submit" class="btn btn-primary">Upload & Recognize</button>
             </form>
+
+            <!-- Image Preview Section -->
+            <div class="mt-3" id="imagePreview" style="display: none;">
+                <h5>Uploaded Image:</h5>
+                <img id="uploadedImage" src="" class="img-thumbnail" style="max-width: 250px; max-height: 150px;">
+            </div>
+
+            <!-- Detected Number Plate Section -->
             <div class="mt-3">
                 <h5>Detected Number Plate:</h5>
                 <p id="result" class="fw-bold text-primary"></p>
@@ -38,14 +46,20 @@
     <script>
         document.getElementById("uploadForm").addEventListener("submit", function(event) {
             event.preventDefault();
-            
+            let formData = new FormData();
             let fileInput = document.getElementById("fileInput").files[0];
+
             if (!fileInput) {
                 document.getElementById("result").innerText = "Please select an image.";
                 return;
             }
 
-            let formData = new FormData();
+            // Display the uploaded image in the preview section
+            let imagePreview = document.getElementById("imagePreview");
+            let uploadedImage = document.getElementById("uploadedImage");
+            uploadedImage.src = URL.createObjectURL(fileInput);
+            imagePreview.style.display = "block";
+
             formData.append("file", fileInput);
 
             fetch("/uploadImageForCarNumber", {
@@ -56,16 +70,11 @@
             .then(data => {
                 if (data.error) {
                     document.getElementById("result").innerText = data.error;
-                } else if (Array.isArray(data.plates) && data.plates.length > 0) {
-                    document.getElementById("result").innerText = "Detected Plate: " + data.plates.join(", ");
                 } else {
-                    document.getElementById("result").innerText = "No plate detected.";
+                    document.getElementById("result").innerText = data.plates;
                 }
             })
-            .catch(error => {
-                console.error("Error:", error);
-                document.getElementById("result").innerText = "Error processing the image.";
-            });
+            .catch(error => console.error("Error:", error));
         });
     </script>
 </body>
