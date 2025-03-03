@@ -7,7 +7,9 @@ WORKDIR /app
 # Install system dependencies for OpenCV
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
-    libglib2.0-0
+    libglib2.0-0 \
+    tesseract-ocr \
+    tesseract-ocr-eng  # Install English language model for Tesseract
 
 # Copy all files to the container
 COPY . /app
