@@ -37,6 +37,13 @@ def upload_image():
         return jsonify({"error": "File was not saved properly."})  # Additional check
 
     result = process_image(filepath)
+        # Delete the file after processing
+    try:
+        os.remove(filepath)
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+
+    return jsonify(result)
     return jsonify(result)
 
 
