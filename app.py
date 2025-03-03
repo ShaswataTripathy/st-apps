@@ -24,20 +24,20 @@ from ai_ml_services.car_number_recognition import extract_number_plate
 @app.route("/uploadImageForCarNumber", methods=["POST"])
 def upload_image():
     if "file" not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-
+        return jsonify({"error": "No file part"})
+    
     file = request.files["file"]
     if file.filename == "":
-        return jsonify({"error": "No selected file"}), 400
+        return jsonify({"error": "No selected file"})
 
-    filepath = os.path.join("uploads", file.filename)
+    filepath = os.path.join("uploads", file.filename)  # Save to 'uploads' folder
     file.save(filepath)
 
-    # Get detected plate
-    plate_text = extract_number_plate(filepath)
+    if not os.path.exists(filepath):
+        return jsonify({"error": "File was not saved properly."})  # Additional check
 
-    # Return data as a list
-    return jsonify({"plates": [plate_text]})  # Always return a list
+    result = process_image(filepath)
+    return jsonify(result)
 
 
 if __name__ == '__main__':
