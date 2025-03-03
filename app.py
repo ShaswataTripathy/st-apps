@@ -10,8 +10,8 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Ensure the uploads folder exists and has the right permissions
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.chmod(app.config['UPLOAD_FOLDER'], 0o777)  # Set full read/write/execute permissions
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
 def home():
