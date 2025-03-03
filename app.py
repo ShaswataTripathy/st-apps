@@ -1,7 +1,11 @@
 from flask import Flask, render_template, request, jsonify
 import os
 from werkzeug.utils import secure_filename
+import sys
+sys.path.append(".")
+
 from ai_ml_services.car_number_recognition import process_image
+
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
