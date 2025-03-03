@@ -3,6 +3,9 @@ import numpy as np
 import pytesseract
 import imutils
 
+# Ensure Tesseract is found
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+
 def preprocess_image(image_path):
     """Preprocess the image to enhance number plate detection."""
     image = cv2.imread(image_path)
