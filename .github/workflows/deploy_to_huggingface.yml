@@ -1,0 +1,29 @@
+name: Deploy to Hugging Face
+
+on:
+  push:
+    branches:
+      - main  # Runs this action whenever the main branch is updated
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "tripathyshaswata@gmail.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Push to Hugging Face
+        run: |
+          git clone https://ShaswataTripathy:$HF_TOKEN@huggingface.co/spaces/tripathyShaswata/st-apps hf_space
+          rsync -av --exclude='.git' . hf_space/
+          cd hf_space
+          git add .
+          git commit -m "Automated update from GitHub"
+          git push
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
