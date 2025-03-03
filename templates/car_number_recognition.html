@@ -38,12 +38,14 @@
     <script>
         document.getElementById("uploadForm").addEventListener("submit", function(event) {
             event.preventDefault();
-            let formData = new FormData();
+            
             let fileInput = document.getElementById("fileInput").files[0];
             if (!fileInput) {
                 document.getElementById("result").innerText = "Please select an image.";
                 return;
             }
+
+            let formData = new FormData();
             formData.append("file", fileInput);
 
             fetch("/uploadImageForCarNumber", {
@@ -54,11 +56,16 @@
             .then(data => {
                 if (data.error) {
                     document.getElementById("result").innerText = data.error;
+                } else if (Array.isArray(data.plates) && data.plates.length > 0) {
+                    document.getElementById("result").innerText = "Detected Plate: " + data.plates.join(", ");
                 } else {
-                    document.getElementById("result").innerText = data.plates.join(", ");
+                    document.getElementById("result").innerText = "No plate detected.";
                 }
             })
-            .catch(error => console.error("Error:", error));
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById("result").innerText = "Error processing the image.";
+            });
         });
     </script>
 </body>
