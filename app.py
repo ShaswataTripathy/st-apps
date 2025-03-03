@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 import sys
 sys.path.append(".")
 
-from ai_ml_services.car_number_recognition import process_image
+from ai_ml_services.car_number_recognition import extract_number_plate
 
 
 app = Flask(__name__)
