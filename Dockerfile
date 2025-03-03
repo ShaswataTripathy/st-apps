@@ -13,10 +13,10 @@ RUN apt-get update && apt-get install -y \
 COPY . /app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Expose the port Flask will run on
 EXPOSE 7860
 
-# Start the Flask app
+# Start the Flask app using Gunicorn
 CMD ["gunicorn", "-b", "0.0.0.0:7860", "app:app"]
