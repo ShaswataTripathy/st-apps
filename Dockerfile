@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 # Copy all files to the container
 COPY . /app
 
-RUN mkdir -p /app/uploads && chmod -R 777 /app/uploads
+RUN mkdir -p /app/uploads
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
