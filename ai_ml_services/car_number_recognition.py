@@ -6,6 +6,9 @@ import imutils
 def preprocess_image(image_path):
     """Preprocess the image to enhance number plate detection."""
     image = cv2.imread(image_path)
+    if image is None:
+        print(f"Error: Unable to read image from {image_path}")  # Debugging step
+        return None, None, None  # Return None to prevent crashing
 
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -68,7 +71,11 @@ def recognize_text(image):
 def process_image(image_path):
     """Process the uploaded image and return the detected number plate."""
     image, gray, edged = preprocess_image(image_path)
+    if image is None:
+        return {"error": "Image could not be loaded. Check file path or format."}
+
     number_plate_img = extract_number_plate(image)
     plate_text = recognize_text(number_plate_img)
 
-    return {"plates": [plate_text]}
+    return {"plates": [plate_text] if plate_text else "No plate detected"}
+
