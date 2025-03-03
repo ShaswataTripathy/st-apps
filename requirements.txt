@@ -4,5 +4,4 @@ numpy
 easyocr
 werkzeug
 pytesseract
-cv2
 imutils
