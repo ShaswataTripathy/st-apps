@@ -1,43 +1,68 @@
-from flask import Flask, render_template, request, jsonify
 import cv2
+import pytesseract
 import numpy as np
-import easyocr
-import os
-from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+def preprocess_image(image_path):
+    """ Load and preprocess the image for better OCR accuracy. """
+    image = cv2.imread(image_path)
 
-reader = easyocr.Reader(['en'])
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Apply GaussianBlur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Adaptive thresholding for better contrast
+    thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY, 11, 2)
+
+    return thresh
+
+def detect_number_plate(image):
+    """ Detects the potential number plate region using contours. """
+    contours, _ = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    plate_candidates = []
+    for contour in contours:
+        # Approximate contour and filter by shape
+        approx = cv2.approxPolyDP(contour, 0.02 * cv2.arcLength(contour, True), True)
+        if len(approx) == 4:  # Possible rectangular plate
+            x, y, w, h = cv2.boundingRect(approx)
+            aspect_ratio = w / h
+            if 2 < aspect_ratio < 6:  # Typical plate aspect ratio
+                plate_candidates.append((x, y, w, h))
+
+    return plate_candidates
+
+def extract_text_from_plate(image, plate_regions):
+    """ Extracts text from detected number plate regions. """
+    detected_numbers = []
+    for (x, y, w, h) in plate_regions:
+        plate_roi = image[y:y+h, x:x+w]  # Crop the plate region
+
+        # Further process the plate region
+        plate_gray = cv2.cvtColor(plate_roi, cv2.COLOR_BGR2GRAY)
+        plate_thresh = cv2.threshold(plate_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+
+        # Extract text using Tesseract
+        text = pytesseract.image_to_string(plate_thresh, config='--psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+        clean_text = ''.join(filter(str.isalnum, text))  # Keep only alphanumeric
+        if clean_text:
+            detected_numbers.append(clean_text)
+
+    return detected_numbers
 
 def process_image(image_path):
-    image = cv2.imread(image_path)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    results = reader.readtext(gray)
-    
-    plates = [text[1] for text in results if text[2] > 0.5]
-    return plates
+    """ Main function to process the image and extract number plates. """
+    processed_image = preprocess_image(image_path)
+    plate_regions = detect_number_plate(processed_image)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+    if not plate_regions:
+        return ["No plate detected"]
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-    
-    plates = process_image(filepath)
-    return jsonify({'plates': plates})
+    # Reload original image for extracting text
+    original_image = cv2.imread(image_path)
+    plate_texts = extract_text_from_plate(original_image, plate_regions)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    return plate_texts if plate_texts else ["No text detected"]
+
