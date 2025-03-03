@@ -1,12 +1,9 @@
-# st-apps
-
 ---
-title: My Flask App
+license: mit
+title: st-apps
+sdk: docker
 emoji: 🚀
 colorFrom: blue
 colorTo: indigo
-sdk: docker
-app_file: app.py
-pinned: false
+short_description: various small poc ai ml apps by shaswata tripathy
 ---
-
