@@ -4,7 +4,10 @@ import easyocr
 from ultralytics import YOLO
 
 # Load YOLOv8 model for number plate detection
-model = YOLO("yolov8n.pt")  # Using the nano version for efficiency
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "yolov8n.pt")
+
+# Load the model from local file
+model = YOLO(MODEL_PATH) # Using the nano version for efficiency
 reader = easyocr.Reader(['en'])  # EasyOCR for text recognition
 
 def detect_plate(image):
