@@ -2,18 +2,13 @@ import logging
 import sys
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
-from ai_ml_services.car_number_recognition import CarNumberRecognition, validate_dependencies
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('flask_app.log')
-    ]
+from ai_ml_services.car_number_recognition import (
+    CarNumberRecognition, 
+    validate_dependencies, 
+    configure_logger
 )
-logger = logging.getLogger(__name__)
+
+logger = configure_logger()
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
