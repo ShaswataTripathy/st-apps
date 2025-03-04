@@ -59,10 +59,8 @@ def process_image(image_path):
     if plate_image is not None:
         number_plate_text = recognize_plate(plate_image)
         print(f"Detected Number Plate: {number_plate_text}")
+        return {"plates": [number_plate_text] if number_plate_text else "No plate detected"}
     else:
         print("No number plate detected.")
 
-if __name__ == "__main__":
-    # Update this path with the path of the image you want to test
-    image_path = "path_to_image.jpg"
-    main(image_path)
+    
