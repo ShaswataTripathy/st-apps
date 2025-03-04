@@ -19,6 +19,11 @@
         #detectedPlatesContainer {
             margin-top: 20px;
         }
+        .analysis-image {
+            max-width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body>
@@ -37,26 +42,58 @@
         </div>
 
         <!-- Main Content -->
-        <div class="container p-5">
-            <h2>Car Number Recognition</h2>
-            <form id="uploadForm" enctype="multipart/form-data">
-                <input type="file" name="file" id="fileInput" class="form-control mb-3" accept="image/*">
-                <button type="submit" class="btn btn-primary">Upload & Recognize</button>
-            </form>
+        <div class="container-fluid p-5">
+            <div class="row">
+                <div class="col-md-6">
+                    <h2>Car Number Recognition</h2>
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <input type="file" name="file" id="fileInput" class="form-control mb-3" accept="image/*">
+                        <button type="submit" class="btn btn-primary">Upload & Recognize</button>
+                    </form>
 
-            <!-- Image Preview Section -->
-            <div class="mt-3" id="imagePreview" style="display: none;">
-                <h5>Uploaded Image:</h5>
-                <img id="uploadedImage" src="" class="img-thumbnail" style="max-width: 250px; max-height: 150px;">
-            </div>
+                    <!-- Image Preview Section -->
+                    <div class="mt-3" id="imagePreview" style="display: none;">
+                        <h5>Uploaded Image:</h5>
+                        <img id="uploadedImage" src="" class="img-thumbnail" style="max-width: 250px; max-height: 150px;">
+                    </div>
 
-            <!-- Detection Results Section -->
-            <div class="mt-3">
-                <h5>Detection Results</h5>
-                <div id="totalPlatesContainer" class="mb-2">
-                    <strong>Total Plates Detected:</strong> <span id="totalPlates">0</span>
+                    <!-- Detection Results Section -->
+                    <div class="mt-3">
+                        <h5>Detection Results</h5>
+                        <div id="totalPlatesContainer" class="mb-2">
+                            <strong>Total Plates Detected:</strong> <span id="totalPlates">0</span>
+                        </div>
+                        <div id="detectedPlatesContainer"></div>
+                    </div>
                 </div>
-                <div id="detectedPlatesContainer"></div>
+
+                <!-- Image Analysis Section -->
+                <div class="col-md-6">
+                    <h2>Image Analysis</h2>
+                    <div id="imageAnalysisContainer">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Original Image</h5>
+                                <img id="originalImage" class="analysis-image" src="" style="display:none;">
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Grayscale</h5>
+                                <img id="grayscaleImage" class="analysis-image" src="" style="display:none;">
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <h5>Histogram Equalized</h5>
+                                <img id="histogramImage" class="analysis-image" src="" style="display:none;">
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Edge Detection</h5>
+                                <img id="edgeImage" class="analysis-image" src="" style="display:none;">
+                            </div>
+                        </div>
+                        <div class="mt-3" id="imagePropertiesContainer"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -68,6 +105,9 @@
             // Reset previous results
             document.getElementById("totalPlates").textContent = '0';
             document.getElementById("detectedPlatesContainer").innerHTML = '';
+            
+            // Reset image analysis
+            resetImageAnalysis();
             
             let formData = new FormData();
             let fileInput = document.getElementById("fileInput").files[0];
@@ -88,49 +128,27 @@
             // Show loading indicator
             showLoading();
 
-            fetch("/uploadImageForCarNumber", {
-                method: "POST",
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
+            // Perform two requests: plate recognition and image analysis
+            Promise.all([
+                fetch("/uploadImageForCarNumber", {
+                    method: "POST",
+                    body: formData
+                }),
+                fetch("/analyze_image", {
+                    method: "POST",
+                    body: formData
+                })
+            ])
+            .then(responses => Promise.all(responses.map(response => response.json())))
+            .then(([plateData, analysisData]) => {
                 // Hide loading indicator
                 hideLoading();
 
-                // Handle potential error
-                if (data.error) {
-                    showError(data.error);
-                    return;
-                }
+                // Handle plate recognition
+                handlePlateRecognition(plateData);
 
-                // Update total plates
-                document.getElementById("totalPlates").textContent = data.total_plates || 0;
-
-                // Display each detected plate
-                const detectedPlatesContainer = document.getElementById("detectedPlatesContainer");
-                
-                if (data.plates && data.plates.length > 0) {
-                    data.plates.forEach((plateInfo, index) => {
-                        const plateElement = document.createElement('div');
-                        plateElement.classList.add('plate-result', 'alert', 'alert-info');
-                        
-                        plateElement.innerHTML = `
-                            <h6>Plate ${index + 1}</h6>
-                            <p><strong>Number:</strong> ${plateInfo.plate}</p>
-                            <small>
-                                <strong>Location:</strong> 
-                                X: ${plateInfo.location[0]}, 
-                                Y: ${plateInfo.location[1]}, 
-                                Width: ${plateInfo.location[2]}, 
-                                Height: ${plateInfo.location[3]}
-                            </small>
-                        `;
-                        
-                        detectedPlatesContainer.appendChild(plateElement);
-                    });
-                } else {
-                    showError("No plates detected in the image.");
-                }
+                // Handle image analysis
+                handleImageAnalysis(analysisData);
             })
             .catch(error => {
                 // Hide loading indicator
@@ -140,33 +158,92 @@
             });
         });
 
-        // Helper function to show errors
-        function showError(message) {
+        function handlePlateRecognition(data) {
+            // Handle potential error
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+
+            // Update total plates
+            document.getElementById("totalPlates").textContent = data.total_plates || 0;
+
+            // Display each detected plate
             const detectedPlatesContainer = document.getElementById("detectedPlatesContainer");
-            detectedPlatesContainer.innerHTML = `
-                <div class="alert alert-danger" role="alert">
-                    ${message}
-                </div>
-            `;
+            
+            if (data.plates && data.plates.length > 0) {
+                data.plates.forEach((plateInfo, index) => {
+                    const plateElement = document.createElement('div');
+                    plateElement.classList.add('plate-result', 'alert', 'alert-info');
+                    
+                    plateElement.innerHTML = `
+                        <h6>Plate ${index + 1}</h6>
+                        <p><strong>Number:</strong> ${plateInfo.plate}</p>
+                        <small>
+                            <strong>Location:</strong> 
+                            X: ${plateInfo.location[0]}, 
+                            Y: ${plateInfo.location[1]}, 
+                            Width: ${plateInfo.location[2]}, 
+                            Height: ${plateInfo.location[3]}
+                        </small>
+                    `;
+                    
+                    detectedPlatesContainer.appendChild(plateElement);
+                });
+            } else {
+                showError("No plates detected in the image.");
+            }
         }
 
-        // Helper function to show loading
-        function showLoading() {
-            const detectedPlatesContainer = document.getElementById("detectedPlatesContainer");
-            detectedPlatesContainer.innerHTML = `
-                <div class="text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+        function handleImageAnalysis(data) {
+            if (data.error) {
+                console.error("Image analysis error:", data.error);
+                return;
+            }
+
+            // Display processed images
+            const images = [
+                { id: 'originalImage', src: data.original_image },
+                { id: 'grayscaleImage', src: data.grayscale_image },
+                { id: 'histogramImage', src: data.histogram_image },
+                { id: 'edgeImage', src: data.edge_image }
+            ];
+
+            images.forEach(img => {
+                const imageEl = document.getElementById(img.id);
+                if (img.src) {
+                    imageEl.src = img.src;
+                    imageEl.style.display = 'block';
+                } else {
+                    imageEl.style.display = 'none';
+                }
+            });
+
+            // Display image properties
+            const propertiesContainer = document.getElementById('imagePropertiesContainer');
+            propertiesContainer.innerHTML = `
+                <div class="card">
+                    <div class="card-header">Image Properties</div>
+                    <div class="card-body">
+                        <p><strong>Dimensions:</strong> ${data.width} x ${data.height}</p>
+                        <p><strong>Mean Brightness:</strong> ${data.mean_brightness.toFixed(2)}</p>
+                        <p><strong>Standard Deviation:</strong> ${data.std_deviation.toFixed(2)}</p>
                     </div>
-                    <p>Processing image...</p>
                 </div>
             `;
         }
 
-        // Helper function to hide loading
-        function hideLoading() {
-            // This can be left empty or used for additional cleanup
+        function resetImageAnalysis() {
+            const imageIds = ['originalImage', 'grayscaleImage', 'histogramImage', 'edgeImage'];
+            imageIds.forEach(id => {
+                const imageEl = document.getElementById(id);
+                imageEl.src = '';
+                imageEl.style.display = 'none';
+            });
+            document.getElementById('imagePropertiesContainer').innerHTML = '';
         }
+
+        // Existing helper functions (showError, showLoading, hideLoading) remain the same
     </script>
 </body>
 </html>
