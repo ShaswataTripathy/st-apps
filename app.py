@@ -73,7 +73,7 @@ def upload_image():
 @app.route('/analyze_image', methods=['POST'])
 def analyze_image():
     """
-    Handle image analysis
+    Handle image analysis with advanced debugging
     """
     try:
         # Check if file is present in the request
