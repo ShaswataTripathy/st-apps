@@ -3,8 +3,35 @@ import numpy as np
 import pytesseract
 import re
 import logging
-import imutils
-import base64
+import sys
+import os
+
+# Configure logging to use stdout and avoid file logging
+def configure_logger():
+    """
+    Create a logger that writes to stdout and handles permission issues
+    """
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    
+    # Create console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    
+    # Create formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    console_handler.setFormatter(formatter)
+    
+    # Add handler to logger
+    logger.handlers.clear()
+    logger.addHandler(console_handler)
+    
+    return logger
+
+# Initialize logger
+logger = configure_logger()
 
 class CarNumberRecognition:
     def __init__(self):
@@ -230,3 +257,29 @@ class CarNumberRecognition:
                 'plates': []
             }
 
+
+def validate_dependencies():
+    """
+    Validate critical dependencies before application startup
+    """
+    try:
+        # Check OpenCV
+        import cv2
+        logger.info(f"OpenCV Version: {cv2.__version__}")
+        
+        # Check NumPy
+        import numpy as np
+        logger.info(f"NumPy Version: {np.__version__}")
+        
+        # Check Pytesseract
+        import pytesseract
+        logger.info(f"Pytesseract Version: {pytesseract.__version__}")
+        
+        # Verify Tesseract installation
+        pytesseract.get_tesseract_version()
+        
+        return True
+    
+    except Exception as e:
+        logger.error(f"Dependency validation failed: {e}")
+        return False
