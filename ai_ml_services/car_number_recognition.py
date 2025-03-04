@@ -2,6 +2,7 @@ import cv2
 import os
 import numpy as np
 import easyocr
+from pathlib import Path
 from ultralytics import YOLO
 
 # Load YOLOv8 model for number plate detection
@@ -11,10 +12,10 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), "yolov8n.pt")
 model = YOLO(MODEL_PATH) # Using the nano version for efficiency
 
 # EasyOCR for text recognition
-EASYOCR_STORAGE_DIR = os.path.join(os.getcwd(), ".easyocr")
-os.makedirs(EASYOCR_STORAGE_DIR, exist_ok=True)  # Create the directory if it doesn't exist
+EASYOCR_STORAGE_DIR = os.path.join(os.getcwd(), "easyocr_model")
+Path(EASYOCR_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
 
-# Initialize EasyOCR with custom storage directory
+# Initialize EasyOCR with custom model directory
 reader = easyocr.Reader(['en'], model_storage_directory=EASYOCR_STORAGE_DIR)
 
 def detect_plate(image):
