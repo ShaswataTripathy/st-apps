@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 import sys
 sys.path.append(".")
 
-from ai_ml_services.car_number_recognition import process_image
+from ai_ml_services.car_number_recognition import detect_and_recognize_plate
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
