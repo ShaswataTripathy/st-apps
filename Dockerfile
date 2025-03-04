@@ -1,6 +1,10 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9
 
+# Set environment variables to avoid permission issues
+ENV MPLCONFIGDIR=/tmp/matplotlib
+ENV YOLO_CONFIG_DIR=/tmp/Ultralytics
+
 # Set the working directory
 WORKDIR /app
 
