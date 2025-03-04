@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Car Number Recognition</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .plate-result {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        #detectedPlatesContainer {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
     <div class="d-flex">
@@ -25,7 +40,7 @@
         <div class="container p-5">
             <h2>Car Number Recognition</h2>
             <form id="uploadForm" enctype="multipart/form-data">
-                <input type="file" name="file" id="fileInput" class="form-control mb-3">
+                <input type="file" name="file" id="fileInput" class="form-control mb-3" accept="image/*">
                 <button type="submit" class="btn btn-primary">Upload & Recognize</button>
             </form>
 
@@ -35,10 +50,13 @@
                 <img id="uploadedImage" src="" class="img-thumbnail" style="max-width: 250px; max-height: 150px;">
             </div>
 
-            <!-- Detected Number Plate Section -->
+            <!-- Detection Results Section -->
             <div class="mt-3">
-                <h5>Detected Number Plate:</h5>
-                <p id="result" class="fw-bold text-primary"></p>
+                <h5>Detection Results</h5>
+                <div id="totalPlatesContainer" class="mb-2">
+                    <strong>Total Plates Detected:</strong> <span id="totalPlates">0</span>
+                </div>
+                <div id="detectedPlatesContainer"></div>
             </div>
         </div>
     </div>
@@ -46,11 +64,16 @@
     <script>
         document.getElementById("uploadForm").addEventListener("submit", function(event) {
             event.preventDefault();
+            
+            // Reset previous results
+            document.getElementById("totalPlates").textContent = '0';
+            document.getElementById("detectedPlatesContainer").innerHTML = '';
+            
             let formData = new FormData();
             let fileInput = document.getElementById("fileInput").files[0];
 
             if (!fileInput) {
-                document.getElementById("result").innerText = "Please select an image.";
+                showError("Please select an image.");
                 return;
             }
 
@@ -62,20 +85,88 @@
 
             formData.append("file", fileInput);
 
+            // Show loading indicator
+            showLoading();
+
             fetch("/uploadImageForCarNumber", {
                 method: "POST",
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
+                // Hide loading indicator
+                hideLoading();
+
+                // Handle potential error
                 if (data.error) {
-                    document.getElementById("result").innerText = data.error;
+                    showError(data.error);
+                    return;
+                }
+
+                // Update total plates
+                document.getElementById("totalPlates").textContent = data.total_plates || 0;
+
+                // Display each detected plate
+                const detectedPlatesContainer = document.getElementById("detectedPlatesContainer");
+                
+                if (data.plates && data.plates.length > 0) {
+                    data.plates.forEach((plateInfo, index) => {
+                        const plateElement = document.createElement('div');
+                        plateElement.classList.add('plate-result', 'alert', 'alert-info');
+                        
+                        plateElement.innerHTML = `
+                            <h6>Plate ${index + 1}</h6>
+                            <p><strong>Number:</strong> ${plateInfo.plate}</p>
+                            <small>
+                                <strong>Location:</strong> 
+                                X: ${plateInfo.location[0]}, 
+                                Y: ${plateInfo.location[1]}, 
+                                Width: ${plateInfo.location[2]}, 
+                                Height: ${plateInfo.location[3]}
+                            </small>
+                        `;
+                        
+                        detectedPlatesContainer.appendChild(plateElement);
+                    });
                 } else {
-                    document.getElementById("result").innerText = data.plates;
+                    showError("No plates detected in the image.");
                 }
             })
-            .catch(error => console.error("Error:", error));
+            .catch(error => {
+                // Hide loading indicator
+                hideLoading();
+                console.error("Error:", error);
+                showError(`An error occurred during processing: ${error.message}`);
+            });
         });
+
+        // Helper function to show errors
+        function showError(message) {
+            const detectedPlatesContainer = document.getElementById("detectedPlatesContainer");
+            detectedPlatesContainer.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    ${message}
+                </div>
+            `;
+        }
+
+        // Helper function to show loading
+        function showLoading() {
+            const detectedPlatesContainer = document.getElementById("detectedPlatesContainer");
+            detectedPlatesContainer.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Processing image...</p>
+                </div>
+            `;
+        }
+
+        // Helper function to hide loading
+        function hideLoading() {
+            // This can be left empty or used for additional cleanup
+        }
     </script>
 </body>
 </html>
