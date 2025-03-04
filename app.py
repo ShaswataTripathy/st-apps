@@ -62,13 +62,7 @@ def upload_image():
         except Exception as recognition_error:
             logger.error(f"Recognition error: {recognition_error}")
             result = {'error': str(recognition_error), 'total_plates': 0, 'plates': []}
-        
-        # Remove uploaded file after processing
-        try:
-            os.remove(filepath)
-        except Exception as remove_error:
-            logger.warning(f"Could not remove file: {remove_error}")
-        
+    
         return jsonify(result)
     
     except Exception as e:
@@ -103,17 +97,10 @@ def analyze_image():
             # Perform image analysis
             analysis_result = perform_image_analysis(filepath)
             
-            # Remove uploaded file
-            os.remove(filepath)
-            
             return jsonify(analysis_result)
         
         except Exception as analysis_error:
             logger.error(f"Image analysis error: {analysis_error}")
-            
-            # Remove file if analysis fails
-            if os.path.exists(filepath):
-                os.remove(filepath)
             
             return jsonify({'error': str(analysis_error)}), 500
     
