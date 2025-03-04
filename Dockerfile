@@ -22,7 +22,7 @@ RUN pip install --upgrade pip setuptools wheel
 COPY . /app
 
 # Install required Python packages
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Ensure Ultralytics model weights are available locally
 RUN mkdir -p /app/ai_ml_services && \
@@ -32,4 +32,5 @@ RUN mkdir -p /app/ai_ml_services && \
 EXPOSE 7860
 
 # Run the application
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:7860", "app:app"]
+CMD ["python3", "-m", "gunicorn", "-w", "1", "-b", "0.0.0.0:7860", "app:app"]
+
