@@ -73,7 +73,7 @@ def upload_image():
 @app.route('/analyze_image', methods=['POST'])
 def analyze_image():
     """
-    Handle image analysis with advanced debugging
+    Handle image analysis
     """
     try:
         # Check if file is present in the request
@@ -95,7 +95,7 @@ def analyze_image():
         
         try:
             # Perform image analysis
-            analysis_result = perform_detailed_analysis(filepath)
+            analysis_result = perform_image_analysis(filepath)
             
             # Remove uploaded file
             os.remove(filepath)
@@ -150,7 +150,6 @@ def perform_image_analysis(image_path):
         'mean_brightness': np.mean(gray),
         'std_deviation': np.std(gray)
     }
-
 @app.errorhandler(Exception)
 def handle_error(e):
     """
