@@ -27,5 +27,5 @@ CMD ["gunicorn", \
      "--bind", "0.0.0.0:7860", \
      "--workers", "4", \
      "--timeout", "120", \
-     "--worker-class", "sync", \
+     "--log-level", "info", \
      "app:app"]
