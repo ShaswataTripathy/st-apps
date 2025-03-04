@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 from ai_ml_services.car_number_recognition import (
