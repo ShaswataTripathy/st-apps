@@ -2,7 +2,7 @@ import logging
 import sys
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
-from car_number_recognition import CarNumberRecognition, validate_dependencies
+from ai_ml_services.car_number_recognition import CarNumberRecognition, validate_dependencies
 
 # Configure logging
 logging.basicConfig(
