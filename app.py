@@ -9,6 +9,8 @@ from ai_ml_services.car_number_recognition import (
     validate_dependencies, 
     configure_logger
 )
+from ai_ml_services.parking_space_detector import ParkingSpaceDetector
+
 
 # Set matplotlib configuration directory
 os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
@@ -225,6 +227,30 @@ def perform_image_analysis(image_path):
         'std_deviation': np.std(gray),
         'debug_plot': f'data:image/png;base64,{plot_base64}'
     }
+
+@app.route('/parking_space', methods=['GET', 'POST'])
+def parking_space():
+    if request.method == 'POST':
+        # Check if image is uploaded
+        if 'parking_image' not in request.files:
+            return render_template('parking_space.html', error='No file uploaded')
+        
+        file = request.files['parking_image']
+        
+        # Save uploaded file
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # Process image
+        detector = ParkingSpaceDetector(filepath)
+        result = detector.detect_parking_spaces()
+        
+        return render_template('parking_space.html', result=result)
+    
+    return render_template('parking_space.html')
+
+
 @app.errorhandler(Exception)
 def handle_error(e):
     """
