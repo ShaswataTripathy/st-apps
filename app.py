@@ -186,7 +186,7 @@ def perform_image_analysis(image_path):
     plt.imshow(edges, cmap='gray')
     
     # Plate Detection Visualization
-    recognizer = AdvancedCarNumberRecognition()
+    recognizer = CarNumberRecognition()
     preprocessed_images = recognizer.preprocess_image(image)
     
     plate_detection_img = image.copy()
