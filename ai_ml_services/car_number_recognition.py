@@ -1,80 +1,187 @@
 import cv2
 import numpy as np
 import pytesseract
-import imutils
+import re
+from PIL import Image
+import io
 
-# Ensure Tesseract is found
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
-
-def preprocess_image(image_path):
-    """Preprocess the image to enhance the number plate detection."""
-    image = cv2.imread(image_path)
-    if image is None:
-        print(f"Error: Unable to read image from {image_path}")  # Debugging step
-        return None  # Return None to prevent crashing
-
+def preprocess_image(image):
+    """
+    Advanced image preprocessing for better plate detection
+    :param image: Input image (numpy array or PIL Image)
+    :return: Preprocessed grayscale image
+    """
+    # Convert PIL Image to numpy array if needed
+    if isinstance(image, Image.Image):
+        image = np.array(image)
+    
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Apply bilateral filter to remove noise
-    gray = cv2.bilateralFilter(gray, 11, 17, 17)
-
-    # Apply edge detection
-    edged = cv2.Canny(gray, 30, 200)
-
-    return image, gray, edged
-
-def extract_number_plate(image):
-    """Extract number plate using contour detection."""
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
-    # Apply adaptive threshold to extract text
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-
-    # Find contours
-    contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = imutils.grab_contours(contours)
+    # Apply adaptive histogram equalization
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    equalized = clahe.apply(gray)
     
-    # Sort contours by area and pick the largest 10
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)[:10]
+    # Apply noise reduction
+    denoised = cv2.fastNlMeansDenoising(equalized, None, 10, 7, 21)
     
-    number_plate = None
-    for contour in contours:
-        approx = cv2.approxPolyDP(contour, 0.02 * cv2.arcLength(contour, True), True)
-        if len(approx) == 4:  # Looking for rectangular shape (number plate)
-            x, y, w, h = cv2.boundingRect(approx)
-            aspect_ratio = w / h
-            if 2.5 < aspect_ratio < 5.5:  # Typical number plate aspect ratio
-                number_plate = image[y:y + h, x:x + w]
-                break
+    # Apply morphological operations
+    kernel = np.ones((3, 3), np.uint8)
+    morphed = cv2.morphologyEx(denoised, cv2.MORPH_OPEN, kernel)
+    
+    return morphed, image
 
-    return number_plate
+def detect_plates(preprocessed_image):
+    """
+    Detect number plates in the image
+    :param preprocessed_image: Preprocessed grayscale image
+    :return: List of detected plate regions
+    """
+    # Load Haar Cascade classifier
+    plate_cascade = cv2.CascadeClassifier(
+        cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml'
+    )
+    
+    # Detect plates using Haar Cascade
+    plates = plate_cascade.detectMultiScale(
+        preprocessed_image, 
+        scaleFactor=1.1, 
+        minNeighbors=5, 
+        minSize=(75, 25)
+    )
+    
+    return plates
 
-def recognize_text(image):
-    """Run OCR to extract text from the image."""
-    if image is None:
-        return "No plate detected"
+def enhance_plate_image(plate_img):
+    """
+    Enhance the detected plate image for better OCR
+    :param plate_img: Detected plate image
+    :return: Enhanced plate image
+    """
+    # Convert to grayscale
+    gray = cv2.cvtColor(plate_img, cv2.COLOR_BGR2GRAY)
+    
+    # Apply adaptive thresholding
+    thresh = cv2.adaptiveThreshold(
+        gray, 
+        255, 
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        cv2.THRESH_BINARY, 
+        11, 
+        2
+    )
+    
+    # Sharpen the image
+    kernel = np.array([[-1, -1, -1],
+                       [-1, 9, -1],
+                       [-1, -1, -1]])
+    sharpened = cv2.filter2D(thresh, -1, kernel)
+    
+    return sharpened
 
-    # Convert to grayscale and apply sharpening
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
-    gray = cv2.filter2D(gray, -1, kernel)
+def recognize_plate(plate_img):
+    """
+    Recognize text from the plate image
+    :param plate_img: Enhanced plate image
+    :return: Recognized plate number
+    """
+    # Tesseract configuration for better recognition
+    custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    
+    # Perform OCR
+    plate_text = pytesseract.image_to_string(
+        plate_img, 
+        config=custom_config
+    ).strip()
+    
+    # Clean and validate the plate number
+    plate_text = validate_plate_number(plate_text)
+    
+    return plate_text
 
-    # OCR using Tesseract with a whitelist
-    custom_config = r'-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 --psm 8'
-    text = pytesseract.image_to_string(gray, config=custom_config)
+def validate_plate_number(plate_text):
+    """
+    Validate and clean the detected plate number
+    :param plate_text: Raw detected plate text
+    :return: Cleaned plate number
+    """
+    # Remove non-alphanumeric characters
+    cleaned_text = re.sub(r'[^A-Z0-9]', '', plate_text.upper())
+    
+    # Additional validation rules
+    # Example: Ensure plate is between 6-8 characters
+    if 6 <= len(cleaned_text) <= 8:
+        return cleaned_text
+    
+    return ""
 
-    # Clean up text
-    text = ''.join(filter(str.isalnum, text))
-    return text if text else "No plate detected"
+def process_image(image_input):
+    """
+    Main processing method for number plate recognition
+    :param image_input: Image file, file path, or PIL Image
+    :return: Dictionary with recognition results
+    """
+    try:
+        # Handle different input types
+        if isinstance(image_input, str):
+            # If it's a file path
+            original_image = cv2.imread(image_input)
+        elif isinstance(image_input, Image.Image):
+            # If it's a PIL Image
+            original_image = cv2.cvtColor(np.array(image_input), cv2.COLOR_RGB2BGR)
+        elif isinstance(image_input, np.ndarray):
+            # If it's already a numpy array
+            original_image = image_input
+        elif hasattr(image_input, 'read'):
+            # If it's a file-like object (e.g., from file upload)
+            image_bytes = image_input.read()
+            image_array = np.frombuffer(image_bytes, np.uint8)
+            original_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        else:
+            return {"error": "Unsupported image input type"}
+        
+        if original_image is None:
+            return {"error": "Unable to read image"}
+        
+        # Preprocess the image
+        preprocessed, original = preprocess_image(original_image)
+        
+        # Detect plates
+        plates = detect_plates(preprocessed)
+        
+        # Store recognized plates
+        recognized_plates = []
+        
+        # Process each detected plate
+        for (x, y, w, h) in plates:
+            # Extract plate region
+            plate_img = original[y:y+h, x:x+w]
+            
+            # Enhance plate image
+            enhanced_plate = enhance_plate_image(plate_img)
+            
+            # Recognize plate number
+            plate_number = recognize_plate(enhanced_plate)
+            
+            if plate_number:
+                recognized_plates.append({
+                    "plate": plate_number,
+                    "location": (x, y, w, h)
+                })
+        
+        return {
+            "plates": recognized_plates,
+            "total_plates": len(recognized_plates)
+        }
+    
+    except Exception as e:
+        return {"error": str(e)}
 
-def process_image(image_path):
-    """Process the uploaded image and return the detected number plate."""
-    image, gray, edged = preprocess_image(image_path)
-    if image is None:
-        return {"error": "Image could not be loaded. Check file path or format."}
-
-    number_plate_img = extract_number_plate(edged)
-    plate_text = recognize_text(number_plate_img)
-
-    return {"plates": [plate_text] if plate_text else "No plate detected"}
+# Compatibility with various frameworks
+def process_uploaded_image(uploaded_file):
+    """
+    Specific method for handling file uploads in web frameworks
+    :param uploaded_file: Uploaded file object
+    :return: Recognition results
+    """
+    return process_image(uploaded_file)
