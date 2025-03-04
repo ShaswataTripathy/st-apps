@@ -10,6 +10,14 @@ from ai_ml_services.car_number_recognition import (
     configure_logger
 )
 
+# Set matplotlib configuration directory
+os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
+os.makedirs('/tmp/matplotlib', exist_ok=True)
+
+# Use non-interactive backend
+import matplotlib
+matplotlib.use('Agg')
+
 logger = configure_logger()
 
 app = Flask(__name__)
