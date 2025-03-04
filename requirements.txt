@@ -6,3 +6,4 @@ werkzeug
 pytesseract
 imutils
 pillow
+matplotlib
