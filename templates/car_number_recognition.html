@@ -223,13 +223,20 @@
             const propertiesContainer = document.getElementById('imagePropertiesContainer');
             propertiesContainer.innerHTML = `
                 <div class="card">
-                    <div class="card-header">Image Properties</div>
-                    <div class="card-body">
-                        <p><strong>Dimensions:</strong> ${data.width} x ${data.height}</p>
-                        <p><strong>Mean Brightness:</strong> ${data.mean_brightness.toFixed(2)}</p>
-                        <p><strong>Standard Deviation:</strong> ${data.std_deviation.toFixed(2)}</p>
-                    </div>
+                <div class="card-header">Image Properties</div>
+                <div class="card-body">
+                    <p><strong>Dimensions:</strong> ${data.width} x ${data.height}</p>
+                    <p><strong>Mean Brightness:</strong> ${data.mean_brightness.toFixed(2)}</p>
+                    <p><strong>Standard Deviation:</strong> ${data.std_deviation.toFixed(2)}</p>
                 </div>
+            </div>
+        
+            <div class="card mt-3">
+                <div class="card-header">Debug Visualization</div>
+                <div class="card-body">
+                    <img src="${data.debug_plot}" class="img-fluid" alt="Debug Visualization">
+                </div>
+            </div>
             `;
         }
 
