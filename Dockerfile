@@ -21,9 +21,15 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -u 1000 appuser
 
 # Create necessary directories with correct permissions
-RUN mkdir -p /app/uploads /app/easyocr_model /app/easyocr_user_network /app/ai_ml_services \
+RUN mkdir -p /app/uploads /app/easyocr_model /app/easyocr_user_network \
     && chown -R appuser:appuser /app \
     && chmod -R 777 /app/uploads /app/easyocr_model /app/easyocr_user_network
+
+# Install application dependencies before switching user
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
+
+# Grant write permissions to appuser home directory
+RUN mkdir -p /home/appuser && chown -R appuser:appuser /home/appuser && chmod -R 777 /home/appuser
 
 # Switch to the new user
 USER appuser
@@ -31,14 +37,8 @@ USER appuser
 # Copy application code
 COPY --chown=appuser:appuser . /app
 
-# Install application dependencies
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
-
-# Ensure Ultralytics model weights are available locally
-COPY ai_ml_services/yolov8n.pt /app/ai_ml_services/yolov8n.pt
-
 # Expose the necessary port
 EXPOSE 7860
 
 # Command to run the application
-CMD ["python3", "-m", "gunicorn", "-w", "1", "-b", "0.0.0.0:7860", "app:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:7860", "app:app"]
