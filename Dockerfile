@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
+RUN mkdir -p /app/uploads && chown -R 1000:1000 /app/uploads
+
 # Upgrade pip, setuptools, and wheel (fixes package metadata issues)
 RUN pip install --upgrade pip setuptools wheel
 
