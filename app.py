@@ -40,7 +40,7 @@ def upload_image():
             return jsonify({"error": "File was not saved properly."})  # Additional check
 
         # Process the image
-        result = process_image(filepath)
+        result = detect_and_recognize_plate(filepath)
 
         # Delete the file after processing
         os.remove(filepath)
