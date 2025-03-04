@@ -1,26 +1,36 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9
 
-# Set the working directory
+# Set environment variables to avoid permission issues
+ENV MPLCONFIGDIR=/tmp/matplotlib
+ENV YOLO_CONFIG_DIR=/tmp/Ultralytics
+
+# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies for OpenCV
+# Install system dependencies (fixes fontconfig issue)
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
     libglib2.0-0 \
-    tesseract-ocr \
-    tesseract-ocr-eng  # Install English language model for Tesseract
+    libgl1-mesa-glx \
+    libfontconfig1 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy all files to the container
+# Upgrade pip, setuptools, and wheel (fixes package metadata issues)
+RUN pip install --upgrade pip setuptools wheel
+
+# Copy the current directory contents into the container
 COPY . /app
 
-RUN mkdir -p /app/uploads && chown -R 1000:1000 /app/uploads
-
-# Install Python dependencies
+# Install required Python packages
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# Expose the port Flask will run on
+# Ensure Ultralytics model weights are available locally
+RUN mkdir -p /app/ai_ml_services && \
+    curl -L -o /app/ai_ml_services/yolov8n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
+
+# Expose port 7860 for Gradio / Flask applications
 EXPOSE 7860
 
-# Start the Flask app using Gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:7860", "app:app"]
+# Run the application
+CMD ["python3", "-m", "gunicorn", "-w", "1", "-b", "0.0.0.0:7860", "app:app"]
+
