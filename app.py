@@ -1,53 +1,58 @@
-from flask import Flask, render_template, request, jsonify
 import os
+from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
-import sys
-sys.path.append(".")
+from ai_ml_services.car_number_recognition import detect_and_recognize_plate
 
-from ai_ml_services.car_number_recognition import process_image
+UPLOAD_FOLDER = "/app/uploads"
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# Ensure the uploads folder exists and has the right permissions
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Ensure the upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-@app.route('/')
+def allowed_file(filename):
+    """Check if the file extension is allowed."""
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route("/")
 def home():
-    return render_template('home.html')
+    """Render the home screen (kept original)."""
+    return render_template("home.html")
 
-@app.route('/car-number-recognition')
+@app.route("/car_number_recognition")
 def car_number_recognition():
-    return render_template('car_number_recognition.html')
+    """Render the car number recognition page."""
+    return render_template("car_number_recognition.html")
 
 @app.route("/uploadImageForCarNumber", methods=["POST"])
 def upload_image():
+    """Handles image uploads and sends it for processing."""
     if "file" not in request.files:
         return jsonify({"error": "No file part"})
     
     file = request.files["file"]
+    
     if file.filename == "":
         return jsonify({"error": "No selected file"})
     
-    # Secure the filename
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    
-    try:
-        file.save(filepath)
-        if not os.path.exists(filepath):
-            return jsonify({"error": "File was not saved properly."})  # Additional check
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        
+        try:
+            file.save(filepath)
+            if not os.path.exists(filepath):
+                return jsonify({"error": "File not saved"})
+            
+            number_plate = detect_and_recognize_plate(filepath)
+            return jsonify({"number_plate": number_plate})
+        
+        except Exception as e:
+            return jsonify({"error": str(e)})
 
-        # Process the image
-        result = process_image(filepath)
+    return jsonify({"error": "Invalid file format. Allowed formats: png, jpg, jpeg"})
 
-        # Delete the file after processing
-        os.remove(filepath)
-    except Exception as e:
-        return jsonify({"error": f"An error occurred: {str(e)}"})
-    
-    return jsonify(result)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=7860, debug=True)
