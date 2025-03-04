@@ -7,11 +7,11 @@ import imutils
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 def preprocess_image(image_path):
-    """Preprocess the image to enhance number plate detection."""
+    """Preprocess the image to enhance the number plate detection."""
     image = cv2.imread(image_path)
     if image is None:
         print(f"Error: Unable to read image from {image_path}")  # Debugging step
-        return None, None, None  # Return None to prevent crashing
+        return None  # Return None to prevent crashing
 
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -21,18 +21,18 @@ def preprocess_image(image_path):
 
     # Apply edge detection
     edged = cv2.Canny(gray, 30, 200)
-    
+
     return image, gray, edged
 
 def extract_number_plate(image):
     """Extract number plate using contour detection."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
-    # Apply threshold to extract text
+    # Apply adaptive threshold to extract text
     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
 
     # Find contours
-    contours = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = imutils.grab_contours(contours)
     
     # Sort contours by area and pick the largest 10
@@ -44,8 +44,8 @@ def extract_number_plate(image):
         if len(approx) == 4:  # Looking for rectangular shape (number plate)
             x, y, w, h = cv2.boundingRect(approx)
             aspect_ratio = w / h
-            if 2 < aspect_ratio < 6:  # Typical number plate aspect ratio
-                number_plate = image[y:y+h, x:x+w]
+            if 2.5 < aspect_ratio < 5.5:  # Typical number plate aspect ratio
+                number_plate = image[y:y + h, x:x + w]
                 break
 
     return number_plate
@@ -55,11 +55,8 @@ def recognize_text(image):
     if image is None:
         return "No plate detected"
 
-    # Convert to grayscale and apply threshold
+    # Convert to grayscale and apply sharpening
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    gray = cv2.bilateralFilter(gray, 11, 17, 17)
-    
-    # Sharpen the image
     kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
     gray = cv2.filter2D(gray, -1, kernel)
 
@@ -77,7 +74,7 @@ def process_image(image_path):
     if image is None:
         return {"error": "Image could not be loaded. Check file path or format."}
 
-    number_plate_img = extract_number_plate(image)
+    number_plate_img = extract_number_plate(edged)
     plate_text = recognize_text(number_plate_img)
 
     return {"plates": [plate_text] if plate_text else "No plate detected"}
