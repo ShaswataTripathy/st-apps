@@ -9,4 +9,3 @@ torchvision
 werkzeug
 pytesseract
 imutils
-fontconfig
