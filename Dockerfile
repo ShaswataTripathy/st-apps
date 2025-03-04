@@ -25,8 +25,8 @@ COPY . /app
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Ensure Ultralytics model weights are available locally
-RUN mkdir -p /app/ai_ml_services && \
-    curl -L -o /app/ai_ml_services/yolov8n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
+RUN mkdir -p /app/ai_ml_services
+COPY ai_ml_services/yolov8n.pt /app/ai_ml_services/yolov8n.pt
 
 # Expose port 7860 for Gradio / Flask applications
 EXPOSE 7860
