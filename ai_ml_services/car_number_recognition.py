@@ -13,9 +13,9 @@ model_path = "ai_ml_services/yolov8n.pt"
 try:
     yolo_model = YOLO(model_path)
     yolo_model.to("cpu")
-    print("✅ YOLO model loaded successfully!")
+    print("YOLO model loaded successfully!")
 except Exception as e:
-    print(f"❌ Error loading YOLO model: {e}")
+    print(f"Error loading YOLO model: {e}")
 
 # Initialize EasyOCR reader
 reader = easyocr.Reader(
