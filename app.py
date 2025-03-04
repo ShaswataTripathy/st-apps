@@ -18,6 +18,12 @@ def allowed_file(filename):
 
 @app.route("/")
 def home():
+    """Render the home screen (kept original)."""
+    return render_template("home.html")
+
+@app.route("/car_number_recognition")
+def car_number_recognition():
+    """Render the car number recognition page."""
     return render_template("car_number_recognition.html")
 
 @app.route("/uploadImageForCarNumber", methods=["POST"])
