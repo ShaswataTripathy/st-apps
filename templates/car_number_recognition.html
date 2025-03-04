@@ -243,7 +243,33 @@
             document.getElementById('imagePropertiesContainer').innerHTML = '';
         }
 
-        // Existing helper functions (showError, showLoading, hideLoading) remain the same
+        // Helper function to show errors
+        function showError(message) {
+            const detectedPlatesContainer = document.getElementById("detectedPlatesContainer");
+            detectedPlatesContainer.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    ${message}
+                </div>
+            `;
+        }
+
+        // Helper function to show loading
+        function showLoading() {
+            const detectedPlatesContainer = document.getElementById("detectedPlatesContainer");
+            detectedPlatesContainer.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Processing image...</p>
+                </div>
+            `;
+        }
+
+        // Helper function to hide loading
+        function hideLoading() {
+            // This can be left empty or used for additional cleanup
+        }
     </script>
 </body>
 </html>
