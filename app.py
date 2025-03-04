@@ -117,11 +117,13 @@ def analyze_image():
 
 def perform_image_analysis(image_path):
     """
-    Perform comprehensive image analysis
+    Perform comprehensive image analysis with debugging information
     """
     import cv2
     import numpy as np
     import base64
+    import matplotlib.pyplot as plt
+    import io
 
     # Read the image
     image = cv2.imread(image_path)
@@ -129,26 +131,72 @@ def perform_image_analysis(image_path):
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
-    # Histogram equalization
+    # Create a figure for visualization
+    plt.figure(figsize=(15, 10))
+    
+    # Original Image
+    plt.subplot(2, 3, 1)
+    plt.title('Original Image')
+    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    
+    # Grayscale
+    plt.subplot(2, 3, 2)
+    plt.title('Grayscale')
+    plt.imshow(gray, cmap='gray')
+    
+    # Histogram Equalization
     hist_eq = cv2.equalizeHist(gray)
+    plt.subplot(2, 3, 3)
+    plt.title('Histogram Equalization')
+    plt.imshow(hist_eq, cmap='gray')
     
-    # Edge detection
+    # Adaptive Thresholding
+    adaptive_thresh = cv2.adaptiveThreshold(
+        gray, 255, 
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        cv2.THRESH_BINARY, 11, 2
+    )
+    plt.subplot(2, 3, 4)
+    plt.title('Adaptive Thresholding')
+    plt.imshow(adaptive_thresh, cmap='gray')
+    
+    # Edge Detection
     edges = cv2.Canny(gray, 100, 200)
+    plt.subplot(2, 3, 5)
+    plt.title('Edge Detection')
+    plt.imshow(edges, cmap='gray')
     
-    # Encode images to base64
-    def encode_image(img):
-        _, buffer = cv2.imencode('.jpg', img)
-        return f"data:image/jpeg;base64,{base64.b64encode(buffer).decode()}"
+    # Plate Detection Visualization
+    recognizer = AdvancedCarNumberRecognition()
+    preprocessed_images = recognizer.preprocess_image(image)
     
+    plate_detection_img = image.copy()
+    for preprocessed_img in preprocessed_images:
+        plates = recognizer.detect_plates(preprocessed_img)
+        
+        for (x, y, w, h) in plates:
+            cv2.rectangle(plate_detection_img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+    
+    plt.subplot(2, 3, 6)
+    plt.title('Plate Detection')
+    plt.imshow(cv2.cvtColor(plate_detection_img, cv2.COLOR_BGR2RGB))
+    
+    # Save plot to a buffer
+    buf = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    
+    # Encode plot to base64
+    plot_base64 = base64.b64encode(buf.getvalue()).decode()
+    plt.close()
+
     return {
-        'original_image': encode_image(image),
-        'grayscale_image': encode_image(gray),
-        'histogram_image': encode_image(hist_eq),
-        'edge_image': encode_image(edges),
         'width': image.shape[1],
         'height': image.shape[0],
         'mean_brightness': np.mean(gray),
-        'std_deviation': np.std(gray)
+        'std_deviation': np.std(gray),
+        'debug_plot': f'data:image/png;base64,{plot_base64}'
     }
 @app.errorhandler(Exception)
 def handle_error(e):
