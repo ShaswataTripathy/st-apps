@@ -1,42 +1,53 @@
 from flask import Flask, render_template, request, jsonify
 import os
+from werkzeug.utils import secure_filename
+import sys
+sys.path.append(".")
+
 from ai_ml_services.car_number_recognition import process_image
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+# Ensure the uploads folder exists and has the right permissions
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-
-@app.route("/")
+@app.route('/')
 def home():
-    return render_template("home.html")
+    return render_template('home.html')
 
-
-@app.route("/car_number_recognition")
+@app.route('/car-number-recognition')
 def car_number_recognition():
-    return render_template("car_number_recognition.html")
-
+    return render_template('car_number_recognition.html')
 
 @app.route("/uploadImageForCarNumber", methods=["POST"])
-def upload_image_for_car_number():
+def upload_image():
     if "file" not in request.files:
         return jsonify({"error": "No file part"})
-
+    
     file = request.files["file"]
     if file.filename == "":
         return jsonify({"error": "No selected file"})
-
-    filename = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-    file.save(filename)
-
+    
+    # Secure the filename
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    
     try:
-        detected_number = process_image(filename)
-        return jsonify({"number_plate": detected_number})
+        file.save(filepath)
+        if not os.path.exists(filepath):
+            return jsonify({"error": "File was not saved properly."})  # Additional check
+
+        # Process the image
+        result = process_image(filepath)
+
+        # Delete the file after processing
+        os.remove(filepath)
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return jsonify({"error": f"An error occurred: {str(e)}"})
+    
+    return jsonify(result)
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
