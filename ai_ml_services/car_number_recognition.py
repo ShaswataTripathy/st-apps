@@ -1,188 +1,244 @@
 import cv2
 import numpy as np
 import pytesseract
+import imutils
 import re
-from PIL import Image
-import io
-import json
 
-def preprocess_image(image):
+def advanced_preprocess_image(image):
     """
-    Advanced image preprocessing for better plate detection
-    :param image: Input image (numpy array or PIL Image)
-    :return: Preprocessed grayscale image
+    Enhanced image preprocessing with multiple techniques
     """
-    # Convert PIL Image to numpy array if needed
-    if isinstance(image, Image.Image):
-        image = np.array(image)
-    
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
-    # Apply adaptive histogram equalization
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    equalized = clahe.apply(gray)
+    # Apply multiple preprocessing techniques
+    preprocessed_images = [
+        # Original grayscale
+        gray,
+        
+        # Histogram Equalization
+        cv2.equalizeHist(gray),
+        
+        # Adaptive Histogram Equalization
+        cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray),
+        
+        # Gaussian Blur
+        cv2.GaussianBlur(gray, (5, 5), 0),
+        
+        # Median Blur
+        cv2.medianBlur(gray, 3)
+    ]
     
-    # Apply noise reduction
-    denoised = cv2.fastNlMeansDenoising(equalized, None, 10, 7, 21)
-    
-    # Apply morphological operations
-    kernel = np.ones((3, 3), np.uint8)
-    morphed = cv2.morphologyEx(denoised, cv2.MORPH_OPEN, kernel)
-    
-    return morphed, image
+    return preprocessed_images
 
-def detect_plates(preprocessed_image):
+def detect_plates_advanced(image):
     """
-    Detect number plates in the image
-    :param preprocessed_image: Preprocessed grayscale image
-    :return: List of detected plate regions
+    Advanced plate detection with multiple techniques
     """
-    # Load Haar Cascade classifier
-    plate_cascade = cv2.CascadeClassifier(
-        cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml'
-    )
+    # Multiple plate detection methods
+    plate_detection_methods = [
+        # Haar Cascade Classifier
+        lambda img: cv2.CascadeClassifier(
+            cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml'
+        ).detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(75, 25)),
+        
+        # Contour-based detection
+        lambda img: find_plate_contours(img)
+    ]
     
-    # Detect plates using Haar Cascade
-    plates = plate_cascade.detectMultiScale(
-        preprocessed_image, 
-        scaleFactor=1.1, 
-        minNeighbors=5, 
-        minSize=(75, 25)
-    )
+    detected_plates = []
     
-    return plates
+    # Try each detection method
+    for method in plate_detection_methods:
+        try:
+            plates = method(image)
+            if len(plates) > 0:
+                detected_plates.extend(plates)
+        except Exception as e:
+            print(f"Detection method failed: {e}")
+    
+    return detected_plates
+
+def find_plate_contours(image):
+    """
+    Contour-based plate detection
+    """
+    # Apply edge detection
+    edges = cv2.Canny(image, 100, 200)
+    
+    # Find contours
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Filter contours based on aspect ratio and area
+    plate_contours = []
+    for contour in contours:
+        perimeter = cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
+        
+        # Check if contour is roughly rectangular
+        if len(approx) == 4:
+            x, y, w, h = cv2.boundingRect(contour)
+            aspect_ratio = w / float(h)
+            
+            # Typical license plate aspect ratios
+            if 2 < aspect_ratio < 5 and w > 50 and h > 20:
+                plate_contours.append((x, y, w, h))
+    
+    return plate_contours
 
 def enhance_plate_image(plate_img):
     """
-    Enhance the detected plate image for better OCR
-    :param plate_img: Detected plate image
-    :return: Enhanced plate image
+    Advanced plate image enhancement
     """
     # Convert to grayscale
     gray = cv2.cvtColor(plate_img, cv2.COLOR_BGR2GRAY)
     
-    # Apply adaptive thresholding
-    thresh = cv2.adaptiveThreshold(
-        gray, 
-        255, 
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-        cv2.THRESH_BINARY, 
-        11, 
-        2
-    )
+    # Multiple enhancement techniques
+    enhancement_methods = [
+        # Original grayscale
+        gray,
+        
+        # Adaptive thresholding
+        cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                               cv2.THRESH_BINARY, 11, 2),
+        
+        # Otsu's thresholding
+        cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1],
+        
+        # Sharpening
+        cv2.filter2D(gray, -1, np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]]))
+    ]
     
-    # Sharpen the image
-    kernel = np.array([[-1, -1, -1],
-                       [-1, 9, -1],
-                       [-1, -1, -1]])
-    sharpened = cv2.filter2D(thresh, -1, kernel)
-    
-    return sharpened
+    return enhancement_methods
 
-def recognize_plate(plate_img):
+def recognize_plate_advanced(plate_images):
     """
-    Recognize text from the plate image
-    :param plate_img: Enhanced plate image
-    :return: Recognized plate number
+    Advanced plate recognition with multiple OCR configurations
     """
-    # Tesseract configuration for better recognition
-    custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    recognized_plates = []
     
-    # Perform OCR
-    plate_text = pytesseract.image_to_string(
-        plate_img, 
-        config=custom_config
-    ).strip()
+    # Multiple Tesseract configurations
+    ocr_configs = [
+        r'--oem 3 --psm 6',  # Assume a single uniform block of text
+        r'--oem 3 --psm 8',  # Treat the image as a single word
+        r'--oem 3 --psm 11',  # Sparse text with OSD
+        r'-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 --psm 6'
+    ]
     
-    # Clean and validate the plate number
-    plate_text = validate_plate_number(plate_text)
+    for plate_img in plate_images:
+        plate_texts = []
+        
+        for config in ocr_configs:
+            try:
+                text = pytesseract.image_to_string(plate_img, config=config).strip()
+                
+                # Clean and validate text
+                cleaned_text = re.sub(r'[^A-Z0-9]', '', text.upper())
+                
+                if 2 < len(cleaned_text) < 10:  # Basic length validation
+                    plate_texts.append(cleaned_text)
+            except Exception as e:
+                print(f"OCR failed with config {config}: {e}")
+        
+        # Take the most frequent or first valid plate text
+        if plate_texts:
+            recognized_plate = max(set(plate_texts), key=plate_texts.count)
+            recognized_plates.append(recognized_plate)
     
-    return plate_text
-
-def validate_plate_number(plate_text):
-    """
-    Validate and clean the detected plate number
-    :param plate_text: Raw detected plate text
-    :return: Cleaned plate number
-    """
-    # Remove non-alphanumeric characters
-    cleaned_text = re.sub(r'[^A-Z0-9]', '', plate_text.upper())
-    
-    # Additional validation rules
-    # Example: Ensure plate is between 6-8 characters
-    if 6 <= len(cleaned_text) <= 8:
-        return cleaned_text
-    
-    return ""
+    return recognized_plates
 
 def process_image(image_input):
     """
-    Main processing method for number plate recognition
-    :param image_input: Image file, file path, or PIL Image
-    :return: Dictionary with recognition results
+    Comprehensive image processing for plate recognition
     """
     try:
         # Handle different input types
         if isinstance(image_input, str):
-            # If it's a file path
             original_image = cv2.imread(image_input)
-        elif isinstance(image_input, Image.Image):
-            # If it's a PIL Image
-            original_image = cv2.cvtColor(np.array(image_input), cv2.COLOR_RGB2BGR)
         elif isinstance(image_input, np.ndarray):
-            # If it's already a numpy array
             original_image = image_input
-        elif hasattr(image_input, 'read'):
-            # If it's a file-like object (e.g., from file upload)
+        else:
+            # Assume file-like object
+            import numpy as np
             image_bytes = image_input.read()
             image_array = np.frombuffer(image_bytes, np.uint8)
             original_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-        else:
-            return {"error": "Unsupported image input type"}
         
         if original_image is None:
             return {"error": "Unable to read image"}
         
-        # Preprocess the image
-        preprocessed, original = preprocess_image(original_image)
+        # Preprocess images
+        preprocessed_images = advanced_preprocess_image(original_image)
         
-        # Detect plates
-        plates = detect_plates(preprocessed)
+        # Detected plates across different preprocessed images
+        all_detected_plates = []
         
-        # Store recognized plates
-        recognized_plates = []
+        # Try detection on each preprocessed image
+        for preprocessed_img in preprocessed_images:
+            plates = detect_plates_advanced(preprocessed_img)
+            
+            for (x, y, w, h) in plates:
+                # Extract plate region
+                plate_img = original_image[y:y+h, x:x+w]
+                
+                # Enhance plate images
+                enhanced_plates = enhance_plate_image(plate_img)
+                
+                # Recognize plates
+                recognized_plates = recognize_plate_advanced(enhanced_plates)
+                
+                for plate_text in recognized_plates:
+                    all_detected_plates.append({
+                        "plate": plate_text,
+                        "location": (x, y, w, h)
+                    })
         
-        # Process each detected plate
-        for (x, y, w, h) in plates:
-            # Extract plate region
-            plate_img = original[y:y+h, x:x+w]
-            
-            # Enhance plate image
-            enhanced_plate = enhance_plate_image(plate_img)
-            
-            # Recognize plate number
-            plate_number = recognize_plate(enhanced_plate)
-            
-            if plate_number:
-                recognized_plates.append({
-                    "plate": plate_number,
-                    "location": (x, y, w, h)
-                })
-        print ("len of recognized_plates " + json.dumps(recognized_plates) )
+        # Remove duplicate plates
+        unique_plates = list({plate['plate']: plate for plate in all_detected_plates}.values())
+        
         return {
-            "plates": recognized_plates,
-            "total_plates": len(recognized_plates)
+            "plates": unique_plates,
+            "total_plates": len(unique_plates)
         }
     
     except Exception as e:
         return {"error": str(e)}
 
-# Compatibility with various frameworks
-def process_uploaded_image(uploaded_file):
+# Debugging function
+def debug_plate_detection(image_path):
     """
-    Specific method for handling file uploads in web frameworks
-    :param uploaded_file: Uploaded file object
-    :return: Recognition results
+    Detailed debugging for plate detection
     """
-    return process_image(uploaded_file)
+    # Read the image
+    image = cv2.imread(image_path)
+    
+    # Preprocess images
+    preprocessed_images = advanced_preprocess_image(image)
+    
+    # Create a figure to show different preprocessing stages
+    import matplotlib.pyplot as plt
+    
+    plt.figure(figsize=(15, 10))
+    titles = [
+        'Original Grayscale', 
+        'Histogram Equalization', 
+        'Adaptive Histogram Equalization', 
+        'Gaussian Blur', 
+        'Median Blur'
+    ]
+    
+    for i, (img, title) in enumerate(zip(preprocessed_images, titles), 1):
+        plt.subplot(2, 3, i)
+        plt.imshow(img, cmap='gray')
+        plt.title(title)
+        
+        # Detect plates on each preprocessed image
+        try:
+            plates = detect_plates_advanced(img)
+            plt.title(f'{title}\nPlates Detected: {len(plates)}')
+        except Exception as e:
+            plt.title(f'{title}\nError: {e}')
+    
+    plt.tight_layout()
+    plt.show()
+
