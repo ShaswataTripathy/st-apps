@@ -1,6 +1,7 @@
 import logging
 import sys
 import os
+import glob
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 from ai_ml_services.car_number_recognition import (
@@ -54,6 +55,24 @@ def upload_image():
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
+
+
+        # Clear other files in the uploads folder
+        try:
+            # Get all files in the uploads folder
+            files_in_uploads = glob.glob(os.path.join(app.config['UPLOAD_FOLDER'], '*'))
+            
+            # Remove all files except the recently uploaded one
+            for existing_file in files_in_uploads:
+                if existing_file != filepath:
+                    try:
+                        os.remove(existing_file)
+                        logger.info(f"Removed old file: {existing_file}")
+                    except Exception as remove_error:
+                        logger.warning(f"Could not remove file {existing_file}: {remove_error}")
+        
+        except Exception as clear_error:
+            logger.error(f"Error clearing uploads folder: {clear_error}")
         
         # Process image
         try:
