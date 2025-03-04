@@ -1,11 +1,7 @@
 flask
 opencv-python
 numpy
-pillow
 easyocr
-ultralytics
-torch
-torchvision
 werkzeug
 pytesseract
 imutils
