@@ -4,6 +4,7 @@ import pytesseract
 import re
 from PIL import Image
 import io
+import json
 
 def preprocess_image(image):
     """
@@ -168,7 +169,7 @@ def process_image(image_input):
                     "plate": plate_number,
                     "location": (x, y, w, h)
                 })
-        print ("len of recognized_plates " + jsonify(recognized_plates) )
+        print ("len of recognized_plates " + json.dumps(recognized_plates) )
         return {
             "plates": recognized_plates,
             "total_plates": len(recognized_plates)
