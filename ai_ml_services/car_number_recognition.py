@@ -50,7 +50,8 @@ def detect_and_recognize_plate(image_path):
                 detected_texts = [text[1] for text in plate_text]
 
                 if detected_texts:
-                    return detected_texts[0]  # Return first detected text
+                    print(" detected text {detected_texts[0]}")
+                    return detected_texts[0]  # Return first detected text                    
         return "No plate detected"
     
     except Exception as e:
