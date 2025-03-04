@@ -3,6 +3,25 @@ import numpy as np
 import pytesseract
 import imutils
 import re
+import json
+
+def convert_to_serializable(obj):
+    """
+    Convert NumPy types to standard Python types
+    """
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, list):
+        return [convert_to_serializable(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_to_serializable(item) for item in obj)
+    elif isinstance(obj, dict):
+        return {k: convert_to_serializable(v) for k, v in obj.items()}
+    return obj
 
 def advanced_preprocess_image(image):
     """
@@ -196,49 +215,13 @@ def process_image(image_input):
         # Remove duplicate plates
         unique_plates = list({plate['plate']: plate for plate in all_detected_plates}.values())
         
-        return {
-            "plates": unique_plates,
+        # Convert to JSON serializable format
+        result = {
+            "plates": convert_to_serializable(unique_plates),
             "total_plates": len(unique_plates)
         }
+        
+        return result
     
     except Exception as e:
         return {"error": str(e)}
-
-# Debugging function
-def debug_plate_detection(image_path):
-    """
-    Detailed debugging for plate detection
-    """
-    # Read the image
-    image = cv2.imread(image_path)
-    
-    # Preprocess images
-    preprocessed_images = advanced_preprocess_image(image)
-    
-    # Create a figure to show different preprocessing stages
-    import matplotlib.pyplot as plt
-    
-    plt.figure(figsize=(15, 10))
-    titles = [
-        'Original Grayscale', 
-        'Histogram Equalization', 
-        'Adaptive Histogram Equalization', 
-        'Gaussian Blur', 
-        'Median Blur'
-    ]
-    
-    for i, (img, title) in enumerate(zip(preprocessed_images, titles), 1):
-        plt.subplot(2, 3, i)
-        plt.imshow(img, cmap='gray')
-        plt.title(title)
-        
-        # Detect plates on each preprocessed image
-        try:
-            plates = detect_plates_advanced(img)
-            plt.title(f'{title}\nPlates Detected: {len(plates)}')
-        except Exception as e:
-            plt.title(f'{title}\nError: {e}')
-    
-    plt.tight_layout()
-    plt.show()
-
