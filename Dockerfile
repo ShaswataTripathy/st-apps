@@ -25,8 +25,15 @@ RUN mkdir -p /app/uploads /app/easyocr_model /app/easyocr_user_network \
     && chown -R appuser:appuser /app \
     && chmod -R 777 /app/uploads /app/easyocr_model /app/easyocr_user_network
 
+# Copy requirements file before installing dependencies
+COPY requirements.txt /app/requirements.txt
+
 # Install application dependencies before switching user
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --no-cache-dir -r /app/requirements.txt gunicorn
+
+# Ensure Ultralytics model weights are available locally
+RUN mkdir -p /app/ai_ml_services
+COPY ai_ml_services/yolov8n.pt /app/ai_ml_services/yolov8n.pt
 
 # Grant write permissions to appuser home directory
 RUN mkdir -p /home/appuser && chown -R appuser:appuser /home/appuser && chmod -R 777 /home/appuser
