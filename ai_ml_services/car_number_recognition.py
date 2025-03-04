@@ -5,12 +5,17 @@ import easyocr
 from ultralytics import YOLO
 
 # Define model paths
-YOLO_MODEL_PATH = "/app/ai_ml_services/yolov8n.pt"
 EASYOCR_STORAGE_DIR = "/app/easyocr_model"
 EASYOCR_USER_NETWORK_DIR = "/app/easyocr_user_network"
 
 # Load YOLOv8 model for number plate detection
-yolo_model = YOLO(YOLO_MODEL_PATH)
+model_path = "ai_ml_services/yolov8n.pt"
+try:
+    yolo_model = YOLO(model_path)
+    yolo_model.to("cpu")
+    print("✅ YOLO model loaded successfully!")
+except Exception as e:
+    print(f"❌ Error loading YOLO model: {e}")
 
 # Initialize EasyOCR reader
 reader = easyocr.Reader(
