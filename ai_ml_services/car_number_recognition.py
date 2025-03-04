@@ -168,7 +168,7 @@ def process_image(image_input):
                     "plate": plate_number,
                     "location": (x, y, w, h)
                 })
-        
+        print ("len of recognized_plates " + len(recognized_plates) )
         return {
             "plates": recognized_plates,
             "total_plates": len(recognized_plates)
