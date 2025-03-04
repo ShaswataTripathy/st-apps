@@ -15,7 +15,13 @@ RUN apt-get update && apt-get install -y \
 COPY . /app
 
 RUN mkdir -p /app/uploads && chown -R 1000:1000 /app/uploads
+RUN mkdir -p /tmp/matplotlib && chmod -R 777 /tmp/matplotlib
 
+# Set environment variables
+ENV MPLCONFIGDIR=/tmp/matplotlib
+ENV PYTHONUNBUFFERED=1
+
+    
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
