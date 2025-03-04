@@ -12,11 +12,19 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), "yolov8n.pt")
 model = YOLO(MODEL_PATH) # Using the nano version for efficiency
 
 # EasyOCR for text recognition
-EASYOCR_STORAGE_DIR = os.path.join(os.getcwd(), "easyocr_model")
-Path(EASYOCR_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+EASYOCR_STORAGE_DIR = "/app/easyocr_model"
+EASYOCR_USER_NETWORK_DIR = "/app/easyocr_user_network"
 
-# Initialize EasyOCR with custom model directory
-reader = easyocr.Reader(['en'], model_storage_directory=EASYOCR_STORAGE_DIR)
+# Ensure directories exist
+Path(EASYOCR_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+Path(EASYOCR_USER_NETWORK_DIR).mkdir(parents=True, exist_ok=True)
+
+# Initialize EasyOCR reader
+reader = easyocr.Reader(
+    ['en'],
+    model_storage_directory=EASYOCR_STORAGE_DIR,
+    user_network_directory=EASYOCR_USER_NETWORK_DIR
+)
 
 def detect_plate(image):
     """ Detects number plate using YOLOv8 """
