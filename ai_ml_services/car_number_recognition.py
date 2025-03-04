@@ -1,58 +1,83 @@
-import os
 import cv2
-import torch
-import easyocr
-from ultralytics import YOLO
+import numpy as np
+import pytesseract
+import imutils
 
-# Define model paths
-EASYOCR_STORAGE_DIR = "/app/easyocr_model"
-EASYOCR_USER_NETWORK_DIR = "/app/easyocr_user_network"
+# Ensure Tesseract is found
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
-# Load YOLOv8 model for number plate detection
-model_path = "ai_ml_services/yolov8n.pt"
-try:
-    yolo_model = YOLO(model_path)
-    yolo_model.to("cpu")
-    print("YOLO model loaded successfully!")
-except Exception as e:
-    print(f"Error loading YOLO model: {e}")
+def preprocess_image(image_path):
+    """Preprocess the image to enhance number plate detection."""
+    image = cv2.imread(image_path)
+    if image is None:
+        print(f"Error: Unable to read image from {image_path}")  # Debugging step
+        return None, None, None  # Return None to prevent crashing
 
-# Initialize EasyOCR reader
-reader = easyocr.Reader(
-    ['en'],
-    model_storage_directory=EASYOCR_STORAGE_DIR,
-    user_network_directory=EASYOCR_USER_NETWORK_DIR
-)
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-def detect_and_recognize_plate(image_path):
-    """Detects number plate using YOLO and recognizes characters using EasyOCR."""
-    try:
-        # Read the input image
-        image = cv2.imread(image_path)
-        if image is None:
-            return "Error: Unable to read image"
+    # Apply bilateral filter to remove noise
+    gray = cv2.bilateralFilter(gray, 11, 17, 17)
 
-        # Run YOLO model to detect license plates
-        results = yolo_model(image)
-
-        for result in results:
-            boxes = result.boxes.xyxy  # Extract bounding boxes
-            for box in boxes:
-                x1, y1, x2, y2 = map(int, box)  # Get coordinates
-                plate_crop = image[y1:y2, x1:x2]  # Crop the detected plate
-
-                # Save the cropped plate for debugging (optional)
-                cropped_plate_path = image_path.replace(".", "_plate.")
-                cv2.imwrite(cropped_plate_path, plate_crop)
-
-                # Run EasyOCR on the cropped image
-                plate_text = reader.readtext(plate_crop)
-                detected_texts = [text[1] for text in plate_text]
-
-                if detected_texts:
-                    print(" detected text {detected_texts[0]}")
-                    return detected_texts[0]  # Return first detected text                    
-        return "No plate detected"
+    # Apply edge detection
+    edged = cv2.Canny(gray, 30, 200)
     
-    except Exception as e:
-        return f"Error processing image: {str(e)}"
+    return image, gray, edged
+
+def extract_number_plate(image):
+    """Extract number plate using contour detection."""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # Apply threshold to extract text
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+
+    # Find contours
+    contours = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = imutils.grab_contours(contours)
+    
+    # Sort contours by area and pick the largest 10
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)[:10]
+    
+    number_plate = None
+    for contour in contours:
+        approx = cv2.approxPolyDP(contour, 0.02 * cv2.arcLength(contour, True), True)
+        if len(approx) == 4:  # Looking for rectangular shape (number plate)
+            x, y, w, h = cv2.boundingRect(approx)
+            aspect_ratio = w / h
+            if 2 < aspect_ratio < 6:  # Typical number plate aspect ratio
+                number_plate = image[y:y+h, x:x+w]
+                break
+
+    return number_plate
+
+def recognize_text(image):
+    """Run OCR to extract text from the image."""
+    if image is None:
+        return "No plate detected"
+
+    # Convert to grayscale and apply threshold
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.bilateralFilter(gray, 11, 17, 17)
+    
+    # Sharpen the image
+    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+    gray = cv2.filter2D(gray, -1, kernel)
+
+    # OCR using Tesseract with a whitelist
+    custom_config = r'-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 --psm 8'
+    text = pytesseract.image_to_string(gray, config=custom_config)
+
+    # Clean up text
+    text = ''.join(filter(str.isalnum, text))
+    return text if text else "No plate detected"
+
+def process_image(image_path):
+    """Process the uploaded image and return the detected number plate."""
+    image, gray, edged = preprocess_image(image_path)
+    if image is None:
+        return {"error": "Image could not be loaded. Check file path or format."}
+
+    number_plate_img = extract_number_plate(image)
+    plate_text = recognize_text(number_plate_img)
+
+    return {"plates": [plate_text] if plate_text else "No plate detected"}
