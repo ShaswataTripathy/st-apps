@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y \
 
 RUN mkdir -p /app/uploads && chown -R 1000:1000 /app/uploads
 RUN mkdir -p /app/easyocr_model && chown -R 1000:1000 /app/easyocr_model
+RUN mkdir -p /app/easyocr_user_network && chown -R 1000:1000 /app/easyocr_user_network
+
 
 
 # Upgrade pip, setuptools, and wheel (fixes package metadata issues)
